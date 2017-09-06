@@ -1,0 +1,108 @@
+#!/bin/sh
+
+echo "Content-type: text/html"
+echo ""
+
+source func.cgi
+
+cat header.tpl
+
+echo '<h1>Boot scripts</h1>'
+
+SCRIPT_HOME="/media/mmcblk0p2/data/etc/scripts"
+source "/media/mmcblk0p2/data/etc/profile" >/dev/null 2>&1
+if [ -n "$F_script" ]; then
+  script="${F_script##*/}"
+  if [ -e "$SCRIPT_HOME/$script" ]; then
+    case "$F_cmd" in
+      start)
+        echo "Running script '$script'...<br/>"
+        echo "<pre>$($SCRIPT_HOME/$script 2>&1)</pre>"
+        ;;  
+      disable)
+        echo "Disable script '$script'...<br/>"
+        chmod a-x "$SCRIPT_HOME/$script" 2>&1
+        ;;
+      stop)
+        echo "Stop script '$script'...<br/>"
+        $SCRIPT_HOME/$script stop 2>&1 && echo "OK" || echo "NOK"
+        echo "<br/>"
+        ;;
+      enable)
+        echo "Enable script '$script'...<br/>"
+        chmod a+x "$SCRIPT_HOME/$script" 2>&1
+        ;;
+      view)
+        echo "<h3>Contents of script '$script':</h3>"
+        echo "<pre>$(cat $SCRIPT_HOME/$script 2>&1)</pre>"
+        ;;
+      *)
+        echo "Unsupported command '$F_cmd'<br/>"
+        echo "<div class='alert alert-warning' role='alert'>$F_script is not a valid script!</div>"
+        ;;
+    esac
+    echo "<hr/>"
+  else
+    echo "<div class='alert alert-danger' role='alert'>$F_script is not a valid script!</div>"
+  fi
+fi
+
+if [ ! -d "$SCRIPT_HOME" ]; then
+  echo "No scripts found in $SCRIPT_HOME<br/>"
+else
+  SCRIPTS=$(ls -A "$SCRIPT_HOME")
+  echo "<table class='table table-bordered table-striped'>"
+  echo "<tr><th>Service</th><th>Status</th><th/><th/><th/><th/></tr>"
+  for i in $SCRIPTS; do
+    echo "<tr>"
+    echo "<td>$i</td>"
+    if [ -x "$SCRIPT_HOME/$i" ]; then
+      if [ $(grep "^status\(\)" "$SCRIPT_HOME/$i") ]; then
+        status="$($SCRIPT_HOME/$i status)"
+        if [ $? -eq 0 ]; then
+          if [ -n "$status" ]; then
+            bgcolor="table-success";
+          else 
+            bgcolor="table-warning";
+          fi
+        else
+          bgcolor="table-danger"
+          status="NOK"
+        fi
+        echo "<td class='$bgcolor'>$status</td>";
+      else
+        echo "<td/>"
+      fi
+
+      if [ $(grep "^start\(\)" "$SCRIPT_HOME/$i") ]; then
+        if [ -z "$status" ]; then
+          echo "<td><button title='Start script' type='button' class='btn btn-success' onClick=\"window.location.href='scripts?cmd=start&script=$i'\">Start</button</td>"
+        else
+          echo "<td><button title='Already running' class='btn disabled' disabled>Start</button>"
+        fi
+      else
+        echo "<td><button title='Run script' type='button' class='btn' onClick=\"window.location.href='scripts?cmd=start&script=$i'\">Run</button></td>"
+      fi
+
+      if [ $(grep "^stop\(\)" "$SCRIPT_HOME/$i") ]; then
+        if [ -n "$status" ]; then
+          echo "<td><button title='Stop script' type='button' class='btn btn-danger' onClick=\"window.location.href='scripts?cmd=stop&script=$i'\">Stop</button></td>"
+        else
+          echo "<td><button title='Not running' class='btn disabled' disabled>Stop</button>"
+        fi
+      else
+        echo "<td></td>"
+      fi
+      echo "<td><button title='Disable script' type='button' class='btn' onClick=\"window.location.href='scripts?cmd=disable&script=$i'\">Disable</button></td>"
+     else
+      echo "<td/>"
+      echo "<td><button title='Enable script' type='button' class='btn' onClick=\"window.location.href='scripts?cmd=enable&script=$i'\">Enable</button></td>"
+      echo "<td/><td/>"
+    fi
+    echo "<td><button title='View script' type='button' class='btn' onClick=\"window.location.href='scripts?cmd=view&script=$i'\">View</button></td>"
+    echo "</tr>"
+  done
+  echo "</table>"
+fi
+
+cat footer.tpl

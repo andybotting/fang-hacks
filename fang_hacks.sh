@@ -109,7 +109,7 @@ else
 fi
 
 # Link cgi files again if available (/tmp is volatile)
-CGI_FILES="/media/mmcblk0p1/bootstrap/www"
+CGI_FILES="/media/mmcblk0p1/bootstrap/www/cgi-bin"
 if [ -d "$CGI_FILES" ]; then
   for i in $CGI_FILES/*; do
     if [ ! -e "/tmp/www/cgi-bin/$(basename $i)" ]; then
@@ -122,6 +122,12 @@ if [ -d "$CGI_FILES" ]; then
 else
   logmsg "CGI scripts not found in $CGI_FILES!"
 fi
+
+# Link CSS/JS files
+for i in css js; do
+  logmsg "Linking /media/mmcblk0p1/bootstrap/www/$i -> /tmp/www/$i"
+  ln -sf "/media/mmcblk0p1/bootstrap/www/$i" "/tmp/www/$i"
+done
 
 if [ $HACKS_ENABLED -ne 1 ]; then
    return 0

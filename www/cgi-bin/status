@@ -1,0 +1,104 @@
+#!/bin/sh
+
+echo "Content-type: text/html"
+echo ""
+
+cat header.tpl
+
+echo '<h1>Fang Hacks!</h1>'
+
+HACKS_HOME="/media/mmcblk0p2/data"
+if [ -x "/etc/fang_hacks.sh" ]; then
+   echo "<div class='alert alert-success' role='alert'>Script is already installed!</div>"
+   if [ ! $(mount |grep /media/mmcblk0p2) ]; then
+       echo "<span class='err'>Error: Nothing is mounted on /media/mmcblk0p2!</span>"
+       echo "<button title='Try to mount the hacks partition manually' type='button' class='btn btn-outline-primary' onClick=\"window.location.href='action?cmd=manual_mount'\">Manual Mount</button>"
+       echo "<br/>"
+   elif [ ! -d "$HACKS_HOME" ]; then
+       echo "<span class='err'>Error: No 'data' directory found in /media/mmcblk0p2!</span>"
+       echo "<br/>"
+   else
+       if [ -e "/etc/.resize_runonce" ]; then
+         echo "<span class='err'>Reboot required to apply new partition layout!</span>"
+         echo "<br/>"
+       elif [ -e "$HACKS_HOME/.resize" ]; then
+         echo "Expand data partition (/media/mmcblk0p2)?"
+         echo "<button title='Expand data partition' type='button' class='btn btn-outline-primary' onClick=\"window.location.href='action?cmd=expandfs'\">Yes</button>"
+         echo "<br/>"
+       fi
+   fi
+   if [ -e /etc/fang_hacks.cfg ]; then
+    source /etc/fang_hacks.cfg
+    echo "<form action='/cgi-bin/action?cmd=apply_cfg' method='post'>"
+    echo "<input type='hidden' name='none'/><!-- never post an empty form -->" 
+    if [ "$HACKS_ENABLED" -eq 1 ]; then checked="checked"; fi
+    echo "<label class='btn btn-outline-primary active'><input name='hacks_enable' type='checkbox' $checked/>Hacks enabled</label>"
+    echo "<br/>"
+    unset checked
+
+    if [ "$DISABLE_CLOUD" -eq 1 ]; then
+      checked="checked"
+    else
+      if [ "$NETWORK_MODE" -eq 0 ]; then
+        disabled="disabled"
+        title="Cannot disable when network is set to Cloud Mode!"
+      fi
+    fi
+    echo "<label class='btn btn-outline-primary active'><input name='disable_cloud' type='checkbox' title='$title' $checked $disabled/>Disable cloud applications</label>"
+    echo "<br/>"
+    echo "<input type='submit' value='Apply' class='btn button-outline-primary'/>"
+    echo "</form>"
+   fi
+   echo "Apply updates from sd-card?"
+   echo "<button title='Copy updates from sd-card to device' type='button' class='btn btn-outline-primary' onClick=\"window.location.href='action?cmd=update'\">Update</button>"
+else
+   echo "Do you want to apply Xiao Fang hacks?<br/>"
+   echo "<button title='Copy the fang_hacks.sh script to the device' type='button' class='btn btn-outline-primary' onClick=\"window.location.href='action?cmd=apply'\">Apply</button>"
+fi
+
+cat << EOF
+</p>
+<hr/>
+<button title='Start default telnetd on port 23' type='button' class='btn btn-outline-primary' onClick="window.location.href='action?cmd=telnetd'">Start rescue telnetd</button>
+<button title='Reboot the device' type='button' class='btn btn-outline-primary' onClick="window.location.href='action?cmd=reboot'">Reboot</button>
+<button title='Manage scripts' type='button' class='btn btn-outline-primary' onClick="window.location.href='scripts'">Manage scripts</button>
+<button title='Network' type='button' class='btn btn-outline-primary' onClick="window.location.href='network'">Network</button>
+<button title='View /tmp/hacks.log' type='button' class='btn btn-outline-primary' onClick="window.location.href='action?cmd=showlog'">View log</button>
+<hr/>
+<table class="table table-bordered table-striped table-responsive">
+<tr>
+  <th>Date:</th>
+  <td>
+      <form style="margin: 0px" action="/cgi-bin/action?cmd=settz" method="post">
+        $(date)
+        <label style="margin-left: 1em" for="tz">TZ:</label>
+        <input id="tz" name="tz" type="text" size="25" value="$(cat /etc/TZ)"/>
+        <label for="hostname">Hostname:</label>
+        <input id="hostname" name="hostname" type="text" size="15" value="$(cat /etc/hostname)"/>
+        <input type="submit" class='btn btn-outline-primary' value="Set"/>
+      </form>
+  </td>
+</tr>
+<tr>
+  <th>System uptime:</th>
+  <td>$(uptime)</td>
+</tr>
+<tr>
+  <th>Version:</th>
+  <td>$(cat /etc/os-release | cut -d'=' -f2)</td>
+</tr>
+<tr>
+  <th>Kernel:</th>
+  <td>$(uname -a)</td>
+</tr>
+</table>
+
+
+    <h3>Process list</h3>
+    <pre>$(ps)</pre>
+
+    <h3>Mounts</h3>
+    <pre>$(mount)</pre>
+EOF
+
+cat footer.tpl
